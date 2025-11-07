@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Relay</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      #chat {
+        width: 80%;
+        max-width: 600px;
+        border: 1px solid #ccc;
+        padding: 20px;
+        border-radius: 5px;
+      }
+      #messages {
+        height: 300px;
+        overflow-y: scroll;
+        border: 1px solid #eee;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      #controls {
+        display: flex;
+        gap: 10px;
+      }
+      input {
+        flex-grow: 1;
+        padding: 5px;
+      }
+      button {
+        padding: 5px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chat">
+      <div id="messages"></div>
+      <div id="controls">
+        <input id="room" placeholder="Room" />
+        <input id="sender" placeholder="Sender" />
+        <input id="text" placeholder="Message" />
+        <button id="send">Send</button>
+      </div>
+    </div>
+
+    <script>
+      const ws = new WebSocket("ws://localhost:8080");
+
+      const messages = document.getElementById("messages");
+      const roomInput = document.getElementById("room");
+      const senderInput = document.getElementById("sender");
+      const textInput = document.getElementById("text");
+      const sendButton = document.getElementById("send");
+
+      ws.onopen = () => {
+        console.log("Connected to WebSocket server.");
+        const room = roomInput.value || "general";
+        ws.send(
+          JSON.stringify({
+            type: "join",
+            room,
+            sender: "system",
+            text: "",
+          })
+        );
+      };
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        const messageElement = document.createElement("div");
+        messageElement.textContent = `[${message.room}] ${message.sender}: ${message.text}`;
+        messages.appendChild(messageElement);
+        messages.scrollTop = messages.scrollHeight;
+      };
+
+      sendButton.onclick = () => {
+        const room = roomInput.value || "general";
+        const sender = senderInput.value || "anonymous";
+        const text = textInput.value;
+
+        if (text) {
+          ws.send(
+            JSON.stringify({
+              type: "message",
+              room,
+              sender,
+              text,
+            })
+          );
+          textInput.value = "";
+        }
+      };
+    </script>
+  </body>
+</html>

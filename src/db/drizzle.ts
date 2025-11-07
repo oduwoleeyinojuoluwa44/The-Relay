@@ -1,13 +1,8 @@
 import "dotenv/config";
 
-let db;
+import { db as prodDb } from "./postgres";
+import { db as devDb } from "./sqlite";
 
-if (process.env.NODE_ENV === "production") {
-  const { db: prodDb } = await import("./postgres");
-  db = prodDb;
-} else {
-  const { db: devDb } = await import("./sqlite");
-  db = devDb;
-}
+const db = process.env.NODE_ENV === "production" ? prodDb : devDb;
 
 export default db;
