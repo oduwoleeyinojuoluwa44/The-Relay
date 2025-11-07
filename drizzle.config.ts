@@ -4,8 +4,9 @@ import "dotenv/config";
 export default {
   schema: "./src/db/schema.ts",
   out: "./migrations",
-  driver: "pg",
+  driver: "d1-http",
+  dialect: "sqlite", // D1 typically proxies SQLite
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL!,
+    url: process.env.DATABASE_URL!,
   },
 } satisfies Config;

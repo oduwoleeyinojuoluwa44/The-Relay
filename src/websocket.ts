@@ -4,6 +4,9 @@ import { messageSchema, Message } from "./types/message";
 import db from "./db/drizzle";
 import { messages } from "./db/schema";
 import { logger } from "./utils/logger";
+import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import * as schema from "./db/schema";
 
 const wss = new WebSocketServer({ noServer: true });
 
@@ -69,7 +72,11 @@ wss.on("connection", (ws) => {
         rooms.get(room)!.add(clientId);
         logger.info(`Client ${clientId} joined room ${room}.`);
       } else if (type === "message") {
-        await db.insert(messages).values({ room, sender, text });
+        if (process.env.NODE_ENV === "production") {
+          await (db as PostgresJsDatabase<typeof schema>).insert(messages).values({ room, sender, text });
+        } else {
+          await (db as SqliteRemoteDatabase<typeof schema>).insert(messages).values({ room, sender, text });
+        }
         publisher.publish(`room:${room}`, JSON.stringify(parsedMessage));
       }
     } catch (error) {
@@ -79,9 +86,14 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     clients.delete(clientId);
-    for (const room of rooms.keys()) {
-      if (rooms.get(room)!.has(clientId)) {
-        rooms.get(room)!.delete(clientId);
+    for (const roomName of rooms.keys()) {
+      const roomClients = rooms.get(roomName)!;
+      if (roomClients.has(clientId)) {
+        roomClients.delete(clientId);
+        if (roomClients.size === 0) {
+          rooms.delete(roomName);
+          logger.info(`Room ${roomName} is now empty and has been removed.`);
+        }
       }
     }
     logger.info(`Client ${clientId} disconnected.`);
